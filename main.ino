@@ -4,39 +4,31 @@ void setup() {
   // Initialize Bluetooth discovery and connection
   setupBluetooth("ESP32test");
 
-  // Wait and connect to a Serial Bluetooth device
+  // Discover and connect to a Bluetooth device
   while (!isDeviceConnected()) {
-    Serial.println("Discovering and connecting to a Serial Bluetooth device...");
+    Serial.println("Discovering and connecting to a Bluetooth device...");
     if (!discoverAndConnect()) {
       Serial.println("Retrying discovery in 2 seconds...");
-      delay(2000);  // Retry delay
+      delay(2000);
     }
   }
 
-  Serial.println("Serial Bluetooth device connected.");
+  Serial.println("Bluetooth device connected!");
+
+  // Check A2DP connection state
+  Serial.println("Checking A2DP connection...");
+  if (a2dpSource.get_connection_state() != ESP_A2D_CONNECTION_STATE_CONNECTED) {
+    Serial.println("A2DP not connected. Attempting to connect...");
+    if (!connectToA2DP(connectedDeviceAddress)) {
+      Serial.println("A2DP connection failed. Restarting discovery...");
+      handleDisconnection();
+    }
+  } else {
+    Serial.println("A2DP already connected successfully!");
+  }
 }
 
 void loop() {
-  static bool a2dpConnected = false;
-  static esp_bd_addr_t currentDeviceAddress;  // To hold the connected device's address
-
-  // Get the current device address from DiscoverConnect
-  if (getConnectedDeviceAddress(currentDeviceAddress)) {
-    if (!a2dpConnected) {
-      Serial.println("Attempting A2DP connection...");
-      if (connectToA2DP(currentDeviceAddress)) {
-        a2dpConnected = true;
-        Serial.println("A2DP connected!");
-      } else {
-        Serial.println("A2DP connection failed. Retrying in 2 seconds...");
-        delay(2000);
-      }
-    } else {
-      Serial.println("A2DP connection already established.");
-      delay(5000);  // Periodic check
-    }
-  } else {
-    Serial.println("No connected device address available.");
-    delay(2000);  // Wait before checking again
-  }
+  // Keep the loop clean for future tasks or additional processing
+  delay(1000);
 }
