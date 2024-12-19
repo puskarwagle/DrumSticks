@@ -1,36 +1,52 @@
-#include <BluetoothA2DPSource.h>
+#include "BluetoothA2DPSource.h"
+#include "tom.h"
 
-BluetoothA2DPSource a2dpSource;
+BluetoothA2DPSource a2dp_source;
 
-// Function to connect to A2DP using BTAddress
-bool connectToA2DP(BTAddress btAddress) {
-  esp_bd_addr_t peerAddress;  // Address array to store the 6 bytes
-  
-  // Convert BTAddress to a String and parse into peerAddress
-  String addrStr = btAddress.toString();  // Convert BTAddress to string format "XX:XX:XX:XX:XX:XX"
-  for (int i = 0; i < 6; i++) {
-    peerAddress[i] = strtol(addrStr.substring(i * 3, i * 3 + 2).c_str(), NULL, 16);
-  }
+// Declare the extern array from tom.c
+extern const unsigned char tom_wav[];
+extern const unsigned int tom_wav_len;
 
-  // Print the converted address for debugging
-  Serial.print("Converted Device Address: ");
-  for (int i = 0; i < 6; i++) {
-    Serial.printf("%02X", peerAddress[i]);
-    if (i < 5) Serial.print(":");
-  }
-  Serial.println();
+SoundData *music = new OneChannelSoundData((int16_t*)tom_wav, tom_wav_len / 2);
 
-  // Attempt to connect using the converted address
-  Serial.println("Attempting to connect to A2DP device...");
-  if (a2dpSource.connect_to(peerAddress)) {
-    Serial.println("A2DP connection initiated.");
-    return true;
+void setupTestPlay() {
+  String deviceName = getDiscoveredDeviceName();  // Get the discovered device name dynamically
+  if (!deviceName.isEmpty()) {
+    a2dp_source.start(deviceName.c_str());  // Start streaming to the discovered device
+    a2dp_source.write_data(music);
+    a2dp_source.set_volume(100);
+    Serial.printf("Streaming initialized for: %s\n", deviceName.c_str());
   } else {
-    Serial.println("A2DP connection failed.");
-    return false;
+    Serial.println("No device found. Cannot start A2DP.");
   }
 }
 
-bool isA2DPDeviceConnected() {
-  return a2dpSource.is_connected();
+void checkConnectionState() {
+  int state = a2dp_source.get_connection_state();  // Get the current connection state
+
+  switch (state) {
+    case 0:
+      Serial.println("A2DP: Disconnected");
+      break;
+    case 1:
+      Serial.println("A2DP: Connecting");
+      break;
+    case 2:
+      Serial.println("A2DP: Connected");
+      break;
+    case 3:
+      Serial.println("A2DP: Streaming");
+      break;
+    default:
+      Serial.println("A2DP: Unknown state");
+      break;
+  }
+}
+
+void loopTestPlay() {
+  String deviceName = getDiscoveredDeviceName();
+  checkConnectionState();  // Periodically check connection state
+  a2dp_source.start(deviceName.c_str());
+  a2dp_source.write_data(music);
+  delay(3000);  // Add a delay to avoid spamming
 }
